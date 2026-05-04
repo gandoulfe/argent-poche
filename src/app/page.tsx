@@ -72,6 +72,7 @@ const CHILD_COLORS = [
 const PAGE = { initial: { opacity: 0, scale: 0.97 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.97 }, transition: { duration: 0.18, ease: 'easeOut' as const } };
 const MODAL_OVERLAY = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.15 } };
 const MODAL_SHEET = { initial: { y: '100%', opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: '100%', opacity: 0 }, transition: { duration: 0.25, ease: 'easeOut' as const } };
+const MODAL_SHEET_TOP = { initial: { y: '-100%', opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: '-100%', opacity: 0 }, transition: { duration: 0.25, ease: 'easeOut' as const } };
 
 // ---- Storage ----
 async function loadData(): Promise<AppData> {
@@ -84,11 +85,14 @@ async function saveData(data: AppData) {
 }
 
 // ---- Modal ----
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+function Modal({ title, onClose, children, position = 'bottom' }: { title: string; onClose: () => void; children: ReactNode; position?: 'top' | 'bottom' }) {
+  const sheet = position === 'top' ? MODAL_SHEET_TOP : MODAL_SHEET;
+  const align = position === 'top' ? 'items-start' : 'items-end sm:items-center';
+  const radius = position === 'top' ? 'rounded-b-3xl sm:rounded-3xl' : 'rounded-t-3xl sm:rounded-3xl';
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className={`fixed inset-0 z-50 flex ${align} justify-center`}>
       <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} {...MODAL_OVERLAY} />
-      <motion.div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md z-10 flex flex-col" style={{ maxHeight: '90dvh' }} {...MODAL_SHEET}>
+      <motion.div className={`relative bg-white ${radius} shadow-2xl w-full max-w-md z-10 flex flex-col`} style={{ maxHeight: '90dvh' }} {...sheet}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors text-lg">×</button>
@@ -389,7 +393,7 @@ export default function App() {
           </Modal>
         )}
         {modal === 'addTx' && (
-          <Modal title={tf.type === 'purchase' ? '🛒 Enregistrer un achat' : '✨ Ajouter un crédit'} onClose={() => setModal(null)}>
+          <Modal title={tf.type === 'purchase' ? '🛒 Enregistrer un achat' : '✨ Ajouter un crédit'} onClose={() => setModal(null)} position="top">
             <div className="space-y-4">
               <div>
                 <label className={lbl}>Montant (€)</label>
