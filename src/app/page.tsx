@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 
 // ---- Types ----
 interface Child {
@@ -68,15 +68,14 @@ function calcBalance(child: Child, txs: Transaction[]): number {
 const WEEKDAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
 // ---- Storage ----
-const KEY = 'argent-poche-v1';
+async function loadData(): Promise<AppData> {
+  const res = await fetch('/api/data');
+  if (!res.ok) return { children: [], transactions: [] };
+  return res.json();
+}
 
-function loadData(): AppData {
-  if (typeof window === 'undefined') return { children: [], transactions: [] };
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || 'null') ?? { children: [], transactions: [] };
-  } catch {
-    return { children: [], transactions: [] };
-  }
+async function saveData(data: AppData) {
+  await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
 // ---- Modal ----
@@ -106,16 +105,15 @@ export default function App() {
   const [view, setView] = useState<'home' | 'child'>('home');
   const [childId, setChildId] = useState<string | null>(null);
   const [modal, setModal] = useState<'addChild' | 'addTx' | null>(null);
+  const loaded = useRef(false);
 
   // Child form
   const [cf, setCf] = useState({ name: '', birthdate: '', amount: '', freq: 'monthly', day: '5', start: '' });
   // Transaction form
   const [tf, setTf] = useState({ amount: '', label: '', date: today(), type: 'purchase' });
 
-  useEffect(() => { setData(loadData()); }, []);
-  useEffect(() => {
-    if (typeof window !== 'undefined') localStorage.setItem(KEY, JSON.stringify(data));
-  }, [data]);
+  useEffect(() => { loadData().then(d => { setData(d); loaded.current = true; }); }, []);
+  useEffect(() => { if (loaded.current) saveData(data); }, [data]);
 
   const child = data.children.find(c => c.id === childId);
   const childTxs = child
