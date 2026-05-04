@@ -1,0 +1,13 @@
+{
+  "name": "Argent de poche",
+  "short_name": "Argent",
+  "description": "Gérez l'argent de poche de vos enfants",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDF0E8",
+  "theme_color": "#7C5CBF",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

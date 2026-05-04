@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="115" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C5CBF"/>
+      <stop offset="100%" style="stop-color:#9B6FD4"/>
+    </linearGradient>
+  </defs>
+  <!-- Body -->
+  <ellipse cx="248" cy="295" rx="148" ry="118" fill="white" opacity="0.95"/>
+  <!-- Head -->
+  <circle cx="370" cy="235" r="58" fill="white" opacity="0.95"/>
+  <!-- Ear -->
+  <ellipse cx="370" cy="182" rx="18" ry="22" fill="white" opacity="0.95"/>
+  <ellipse cx="370" cy="184" rx="10" ry="14" fill="#F0956A"/>
+  <!-- Eye -->
+  <circle cx="385" cy="225" r="7" fill="#7C5CBF"/>
+  <circle cx="387" cy="223" r="2.5" fill="white"/>
+  <!-- Nostril -->
+  <ellipse cx="395" cy="248" rx="14" ry="10" fill="#F0C0B0"/>
+  <circle cx="390" cy="248" r="3" fill="#C07060"/>
+  <circle cx="400" cy="248" r="3" fill="#C07060"/>
+  <!-- Coin slot -->
+  <rect x="220" y="170" width="44" height="10" rx="5" fill="#7C5CBF" opacity="0.5"/>
+  <!-- Legs -->
+  <rect x="155" y="390" width="32" height="44" rx="12" fill="white" opacity="0.9"/>
+  <rect x="207" y="395" width="32" height="44" rx="12" fill="white" opacity="0.9"/>
+  <rect x="265" y="395" width="32" height="44" rx="12" fill="white" opacity="0.9"/>
+  <rect x="317" y="390" width="32" height="44" rx="12" fill="white" opacity="0.9"/>
+  <!-- Tail -->
+  <path d="M100 275 Q75 255 85 230 Q95 205 115 220" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.9"/>
+  <!-- Coin -->
+  <circle cx="188" cy="245" r="24" fill="#F0956A" opacity="0.85"/>
+  <text x="188" y="252" text-anchor="middle" font-size="22" font-weight="bold" fill="white" font-family="Arial">€</text>
+</svg>
