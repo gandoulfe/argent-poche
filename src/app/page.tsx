@@ -11,16 +11,9 @@ interface Child {
   allowance: { amount: number; frequency: 'monthly' | 'weekly'; day: number; startDate: string };
   goal?: { label: string; amount: number };
 }
-
 interface Transaction {
-  id: string;
-  childId: string;
-  amount: number;
-  label: string;
-  date: string;
-  note?: string;
+  id: string; childId: string; amount: number; label: string; date: string; note?: string;
 }
-
 interface AppData { children: Child[]; transactions: Transaction[] }
 
 // ---- Utils ----
@@ -30,7 +23,6 @@ function calcAge(birthdate: string): number {
   if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
   return a;
 }
-
 function getAllowanceDates(child: Child): Date[] {
   const { allowance } = child;
   const start = new Date(allowance.startDate);
@@ -47,35 +39,12 @@ function getAllowanceDates(child: Child): Date[] {
   }
   return dates;
 }
-
 function calcBalance(child: Child, txs: Transaction[]): number {
-  const dates = getAllowanceDates(child);
-  const earned = dates.length * child.allowance.amount;
-  const manual = txs.filter(t => t.childId === child.id).reduce((s, t) => s + t.amount, 0);
-  return earned + manual;
-}
-
-// Balance at a given date
-function calcBalanceAt(child: Child, txs: Transaction[], at: Date): number {
-  const atEnd = new Date(at); atEnd.setHours(23, 59, 59, 999);
-  const start = new Date(child.allowance.startDate);
-  const { allowance } = child;
-  let earned = 0;
-  if (allowance.frequency === 'monthly') {
-    let d = new Date(start.getFullYear(), start.getMonth(), allowance.day);
-    if (d < start) d.setMonth(d.getMonth() + 1);
-    while (d <= atEnd) { earned += allowance.amount; d.setMonth(d.getMonth() + 1); }
-  } else {
-    const diff = (allowance.day - start.getDay() + 7) % 7;
-    const d = new Date(start); d.setDate(d.getDate() + diff);
-    while (d <= atEnd) { earned += allowance.amount; d.setDate(d.getDate() + 7); }
-  }
-  const manual = txs.filter(t => t.childId === child.id && t.date <= at.toISOString().split('T')[0]).reduce((s, t) => s + t.amount, 0);
-  return earned + manual;
+  const earned = getAllowanceDates(child).length * child.allowance.amount;
+  return earned + txs.filter(t => t.childId === child.id).reduce((s, t) => s + t.amount, 0);
 }
 
 const WEEKDAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-const MONTHS_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 const CHILD_COLORS = [
   { bg: '#7C5CBF', grad: 'linear-gradient(135deg,#7C5CBF,#9B6FD4)' },
   { bg: '#F0956A', grad: 'linear-gradient(135deg,#F0956A,#E07850)' },
@@ -94,51 +63,8 @@ function getBadges(child: Child, txs: Transaction[], balance: number): Badge[] {
   if (balance >= 50) badges.push({ emoji: '🏆', label: '50€ épargnés' });
   if (balance >= 100) badges.push({ emoji: '👑', label: '100€ épargnés' });
   if (child.goal && balance >= child.goal.amount) badges.push({ emoji: '🎯', label: 'Objectif atteint !' });
-  const purchases = childTxs.filter(t => t.amount < 0).length;
-  if (purchases >= 5) badges.push({ emoji: '🛒', label: '5 achats' });
+  if (childTxs.filter(t => t.amount < 0).length >= 5) badges.push({ emoji: '🛒', label: '5 achats' });
   return badges;
-}
-
-// ---- Chart ----
-function BalanceChart({ child, txs, color }: { child: Child; txs: Transaction[]; color: string }) {
-  const now = new Date();
-  const points = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (6 - i), 1);
-    return { label: MONTHS_FR[d.getMonth()], value: calcBalanceAt(child, txs, new Date(d.getFullYear(), d.getMonth() + 1, 0)) };
-  });
-
-  const min = Math.min(...points.map(p => p.value));
-  const max = Math.max(...points.map(p => p.value));
-  const range = max - min || 1;
-  const W = 300, H = 80, pad = 16;
-  const toX = (i: number) => pad + (i / (points.length - 1)) * (W - pad * 2);
-  const toY = (v: number) => H - pad - ((v - min) / range) * (H - pad * 2);
-  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.value).toFixed(1)}`).join(' ');
-  const area = `${d} L${toX(points.length - 1).toFixed(1)},${H} L${toX(0).toFixed(1)},${H} Z`;
-
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm">
-      <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Évolution du solde</p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 80 }}>
-        <defs>
-          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
-            <stop offset="100%" stopColor={color} stopOpacity="0"/>
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#chartGrad)"/>
-        <path d={d} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        {points.map((p, i) => (
-          <circle key={i} cx={toX(i)} cy={toY(p.value)} r="3.5" fill={color}/>
-        ))}
-      </svg>
-      <div className="flex justify-between mt-1">
-        {points.map((p, i) => (
-          <span key={i} className="text-xs text-gray-400" style={{ fontSize: 10 }}>{p.label}</span>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ---- Storage ----
@@ -179,7 +105,7 @@ const inp = "w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus
 const lbl = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2";
 
 // ---- Child Form ----
-type CF = { name: string; birthdate: string; amount: string; freq: string; day: string; start: string; goalLabel: string; goalAmount: string };
+type CF = { name: string; birthdate: string; amount: string; freq: string; day: string; start: string };
 function ChildForm({ initial, onSubmit, submitLabel }: { initial: CF; onSubmit: (v: CF) => void; submitLabel: string }) {
   const [v, setV] = useState(initial);
   const set = (k: keyof CF, val: string) => setV(f => ({ ...f, [k]: val }));
@@ -203,13 +129,6 @@ function ChildForm({ initial, onSubmit, submitLabel }: { initial: CF; onSubmit: 
           : <select className={inp} value={v.day} onChange={e => set('day', e.target.value)}>{WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select>}
       </div>
       <div><label className={lbl}>Date de début</label><input type="date" className={inp} value={v.start} onChange={e => set('start', e.target.value)} /></div>
-      <div className="border-t border-gray-100 pt-4">
-        <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Objectif d&apos;épargne (optionnel)</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={lbl}>Nom de l&apos;objectif</label><input className={inp} value={v.goalLabel} onChange={e => set('goalLabel', e.target.value)} placeholder="Nintendo Switch" /></div>
-          <div><label className={lbl}>Montant (€)</label><input type="number" className={inp} value={v.goalAmount} onChange={e => set('goalAmount', e.target.value)} placeholder="300" min="0" step="1" /></div>
-        </div>
-      </div>
       <motion.button onClick={() => onSubmit(v)} disabled={!v.name || !v.birthdate || !v.amount || !v.start} whileTap={{ scale: 0.97 }} className="w-full text-white font-black py-4 rounded-2xl shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-2" style={{ background: 'linear-gradient(135deg,#7C5CBF,#9B6FD4)' }}>
         {submitLabel}
       </motion.button>
@@ -217,12 +136,12 @@ function ChildForm({ initial, onSubmit, submitLabel }: { initial: CF; onSubmit: 
   );
 }
 
-const EMPTY_CF: CF = { name: '', birthdate: '', amount: '', freq: 'monthly', day: '5', start: '', goalLabel: '', goalAmount: '' };
+const EMPTY_CF: CF = { name: '', birthdate: '', amount: '', freq: 'monthly', day: '5', start: '' };
 function childToCF(c: Child): CF {
-  return { name: c.name, birthdate: c.birthdate, amount: String(c.allowance.amount), freq: c.allowance.frequency, day: String(c.allowance.day), start: c.allowance.startDate, goalLabel: c.goal?.label ?? '', goalAmount: c.goal?.amount ? String(c.goal.amount) : '' };
+  return { name: c.name, birthdate: c.birthdate, amount: String(c.allowance.amount), freq: c.allowance.frequency, day: String(c.allowance.day), start: c.allowance.startDate };
 }
-function cfToChild(id: string, v: CF): Child {
-  return { id, name: v.name.trim(), birthdate: v.birthdate, allowance: { amount: parseFloat(v.amount), frequency: v.freq as 'monthly' | 'weekly', day: parseInt(v.day), startDate: v.start }, ...(v.goalLabel && v.goalAmount ? { goal: { label: v.goalLabel, amount: parseFloat(v.goalAmount) } } : {}) };
+function cfToChild(id: string, v: CF, goal?: Child['goal']): Child {
+  return { id, name: v.name.trim(), birthdate: v.birthdate, allowance: { amount: parseFloat(v.amount), frequency: v.freq as 'monthly' | 'weekly', day: parseInt(v.day), startDate: v.start }, ...(goal ? { goal } : {}) };
 }
 
 // ---- App ----
@@ -230,11 +149,11 @@ export default function App() {
   const [data, setData] = useState<AppData>({ children: [], transactions: [] });
   const [view, setView] = useState<'home' | 'child'>('home');
   const [childId, setChildId] = useState<string | null>(null);
-  const [modal, setModal] = useState<'addChild' | 'editChild' | 'addTx' | 'allowanceHistory' | null>(null);
-  const [historyTab, setHistoryTab] = useState<'manual' | 'allowance'>('manual');
+  const [modal, setModal] = useState<'addChild' | 'editChild' | 'addTx' | 'goal' | null>(null);
   const loaded = useRef(false);
   const [loading, setLoading] = useState(true);
   const [tf, setTf] = useState({ amount: '', label: '', note: '', date: today(), type: 'purchase' });
+  const [gf, setGf] = useState({ label: '', amount: '' });
 
   useEffect(() => { loadData().then(d => { setData(d); loaded.current = true; setLoading(false); }); }, []);
   useEffect(() => { if (loaded.current) saveData(data); }, [data]);
@@ -242,10 +161,20 @@ export default function App() {
   const child = data.children.find(c => c.id === childId);
   const childIdx = data.children.findIndex(c => c.id === childId);
   const color = CHILD_COLORS[childIdx >= 0 ? childIdx % CHILD_COLORS.length : 0];
-  const childTxs = child ? data.transactions.filter(t => t.childId === childId).sort((a, b) => b.date.localeCompare(a.date)) : [];
-  const allowanceDates = child ? getAllowanceDates(child).reverse() : [];
   const balance = child ? calcBalance(child, data.transactions) : 0;
   const badges = child ? getBadges(child, data.transactions, balance) : [];
+
+  // Merge manual txs + allowance dates into one sorted list
+  const mergedHistory: Array<{ type: 'tx'; tx: Transaction } | { type: 'allowance'; date: Date }> = child
+    ? [
+        ...data.transactions.filter(t => t.childId === childId).map(tx => ({ type: 'tx' as const, tx })),
+        ...getAllowanceDates(child).map(date => ({ type: 'allowance' as const, date })),
+      ].sort((a, b) => {
+        const da = a.type === 'tx' ? a.tx.date : a.date.toISOString().split('T')[0];
+        const db = b.type === 'tx' ? b.tx.date : b.date.toISOString().split('T')[0];
+        return db.localeCompare(da);
+      })
+    : [];
 
   function addChild(v: CF) {
     if (!v.name.trim() || !v.birthdate || !v.amount || !v.start) return;
@@ -254,7 +183,17 @@ export default function App() {
   }
   function editChild(v: CF) {
     if (!childId || !v.name.trim() || !v.birthdate || !v.amount || !v.start) return;
-    setData(d => ({ ...d, children: d.children.map(c => c.id !== childId ? c : cfToChild(childId, v)) }));
+    setData(d => ({ ...d, children: d.children.map(c => c.id !== childId ? c : cfToChild(childId, v, c.goal)) }));
+    setModal(null);
+  }
+  function submitGoal() {
+    if (!childId || !gf.label.trim() || !gf.amount) return;
+    setData(d => ({ ...d, children: d.children.map(c => c.id !== childId ? c : { ...c, goal: { label: gf.label.trim(), amount: parseFloat(gf.amount) } }) }));
+    setModal(null);
+  }
+  function removeGoal() {
+    if (!childId) return;
+    setData(d => ({ ...d, children: d.children.map(c => c.id !== childId ? c : { ...c, goal: undefined }) }));
     setModal(null);
   }
   function submitTx() {
@@ -272,6 +211,10 @@ export default function App() {
   function openTx(type: 'purchase' | 'credit') {
     setTf(f => ({ ...f, type, date: today(), amount: '', label: '', note: '' }));
     setModal('addTx');
+  }
+  function openGoal() {
+    setGf({ label: child?.goal?.label ?? '', amount: child?.goal?.amount ? String(child.goal.amount) : '' });
+    setModal('goal');
   }
 
   return (
@@ -334,131 +277,116 @@ export default function App() {
           )}
 
           {/* ---- CHILD DETAIL ---- */}
-          {view === 'child' && child && (() => {
-            return (
-              <motion.div key="child" {...PAGE}>
-                <header className="flex items-center gap-3 mb-6">
-                  <motion.button onClick={() => setView('home')} whileTap={{ scale: 0.9 }} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white shadow-sm text-gray-600 font-bold" style={{ willChange: 'transform' }}>←</motion.button>
-                  <div className="flex-1">
-                    <h1 className="text-2xl font-black text-gray-900">{child.name}</h1>
-                    <p className="text-xs text-gray-400">{calcAge(child.birthdate)} ans</p>
-                  </div>
-                  <button onClick={() => setModal('editChild')} className="text-xs text-purple-500 hover:text-purple-700 px-3 py-1.5 rounded-xl hover:bg-purple-50 transition-colors font-semibold">Modifier</button>
-                  <button onClick={() => deleteChild(child.id)} className="text-xs text-red-400 hover:text-red-600 px-3 py-1.5 rounded-xl hover:bg-red-50 transition-colors font-semibold">Supprimer</button>
-                </header>
-
-                {/* Balance card */}
-                <div className="rounded-3xl p-7 mb-4 text-center text-white shadow-xl" style={{ background: color.grad }}>
-                  <p className="text-sm font-semibold opacity-80 mb-2">Solde actuel</p>
-                  <div className="text-6xl font-black tabular-nums mb-3">{fmt(balance)}</div>
-                  <p className="text-sm opacity-70">
-                    {child.allowance.amount}€ / {child.allowance.frequency === 'monthly' ? 'mois' : 'semaine'}
-                    {child.allowance.frequency === 'monthly' ? ` · le ${child.allowance.day}` : ` · ${WEEKDAYS[child.allowance.day]}`}
-                  </p>
+          {view === 'child' && child && (
+            <motion.div key="child" {...PAGE}>
+              <header className="flex items-center gap-3 mb-6">
+                <motion.button onClick={() => setView('home')} whileTap={{ scale: 0.9 }} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white shadow-sm text-gray-600 font-bold" style={{ willChange: 'transform' }}>←</motion.button>
+                <div className="flex-1">
+                  <h1 className="text-2xl font-black text-gray-900">{child.name}</h1>
+                  <p className="text-xs text-gray-400">{calcAge(child.birthdate)} ans</p>
                 </div>
+                <button onClick={() => setModal('editChild')} className="text-xs text-purple-500 hover:text-purple-700 px-3 py-1.5 rounded-xl hover:bg-purple-50 transition-colors font-semibold">Modifier</button>
+                <button onClick={() => deleteChild(child.id)} className="text-xs text-red-400 hover:text-red-600 px-3 py-1.5 rounded-xl hover:bg-red-50 transition-colors font-semibold">Supprimer</button>
+              </header>
 
-                {/* Goal */}
-                {child.goal && (
-                  <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-bold text-gray-700">🎯 {child.goal.label}</span>
+              {/* Balance card */}
+              <div className="rounded-3xl p-7 mb-4 text-center text-white shadow-xl" style={{ background: color.grad }}>
+                <p className="text-sm font-semibold opacity-80 mb-2">Solde actuel</p>
+                <div className="text-6xl font-black tabular-nums mb-3">{fmt(balance)}</div>
+                <p className="text-sm opacity-70">
+                  {child.allowance.amount}€ / {child.allowance.frequency === 'monthly' ? 'mois' : 'semaine'}
+                  {child.allowance.frequency === 'monthly' ? ` · le ${child.allowance.day}` : ` · ${WEEKDAYS[child.allowance.day]}`}
+                </p>
+              </div>
+
+              {/* Goal */}
+              {child.goal ? (
+                <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-bold text-gray-700">🎯 {child.goal.label}</span>
+                    <div className="flex items-center gap-2">
                       <span className="text-sm font-black" style={{ color: color.bg }}>{fmt(balance)} / {fmt(child.goal.amount)}</span>
-                    </div>
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, Math.max(0, balance / child.goal.amount * 100))}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} className="h-full rounded-full" style={{ background: color.grad }} />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1.5 text-right">{Math.min(100, Math.round(balance / child.goal.amount * 100))}% atteint</p>
-                  </div>
-                )}
-
-                {/* Badges */}
-                {badges.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Trophées</p>
-                    <div className="flex flex-wrap gap-2">
-                      {badges.map((b, i) => (
-                        <motion.div key={i} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }} className="flex items-center gap-1.5 bg-white rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-gray-700">
-                          <span>{b.emoji}</span><span>{b.label}</span>
-                        </motion.div>
-                      ))}
+                      <button onClick={openGoal} className="text-xs text-gray-400 hover:text-purple-500 transition-colors">✏️</button>
                     </div>
                   </div>
-                )}
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, Math.max(0, balance / child.goal.amount * 100))}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} className="h-full rounded-full" style={{ background: color.grad }} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5 text-right">{Math.min(100, Math.round(balance / child.goal.amount * 100))}% atteint</p>
+                </div>
+              ) : (
+                <button onClick={openGoal} className="w-full mb-4 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 font-semibold hover:border-purple-300 hover:text-purple-400 transition-colors">
+                  🎯 Définir un objectif d&apos;épargne
+                </button>
+              )}
 
-                {/* Chart */}
+              {/* Badges */}
+              {badges.length > 0 && (
                 <div className="mb-4">
-                  <BalanceChart child={child} txs={data.transactions} color={color.bg} />
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Trophées</p>
+                  <div className="flex flex-wrap gap-2">
+                    {badges.map((b, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }} className="flex items-center gap-1.5 bg-white rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-gray-700">
+                        <span>{b.emoji}</span><span>{b.label}</span>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
+              )}
 
-                {/* Action buttons */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <motion.button onClick={() => openTx('purchase')} whileTap={{ scale: 0.95 }} whileHover={{ y: -1 }} className="flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl shadow-md text-sm" style={{ background: 'linear-gradient(135deg,#F0956A,#E07850)', willChange: 'transform' }}>🛒 Achat</motion.button>
-                  <motion.button onClick={() => openTx('credit')} whileTap={{ scale: 0.95 }} whileHover={{ y: -1 }} className="flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl shadow-md text-sm" style={{ background: 'linear-gradient(135deg,#6BBF8E,#4AA070)', willChange: 'transform' }}>✨ Crédit</motion.button>
-                </div>
+              {/* Action buttons */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <motion.button onClick={() => openTx('purchase')} whileTap={{ scale: 0.95 }} whileHover={{ y: -1 }} className="flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl shadow-md text-sm" style={{ background: 'linear-gradient(135deg,#F0956A,#E07850)', willChange: 'transform' }}>🛒 Achat</motion.button>
+                <motion.button onClick={() => openTx('credit')} whileTap={{ scale: 0.95 }} whileHover={{ y: -1 }} className="flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl shadow-md text-sm" style={{ background: 'linear-gradient(135deg,#6BBF8E,#4AA070)', willChange: 'transform' }}>✨ Crédit</motion.button>
+              </div>
 
-                {/* Tabs */}
-                <div className="flex gap-2 mb-3">
-                  {(['manual', 'allowance'] as const).map(tab => (
-                    <button key={tab} onClick={() => setHistoryTab(tab)} className={`px-4 py-1.5 rounded-full text-xs font-black transition-all ${historyTab === tab ? 'text-white shadow-sm' : 'bg-white text-gray-400'}`} style={historyTab === tab ? { background: color.grad } : {}}>
-                      {tab === 'manual' ? '📋 Transactions' : '📅 Versements'}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Manual transactions */}
-                {historyTab === 'manual' && (
-                  childTxs.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-3xl">Aucune transaction</div>
-                  ) : (
-                    <div className="space-y-2">
-                      <AnimatePresence>
-                        {childTxs.map(tx => (
-                          <motion.div key={tx.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.15 }} className="bg-white rounded-2xl px-4 py-3.5 shadow-sm" style={{ willChange: 'transform, opacity' }}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${tx.amount >= 0 ? 'bg-green-100' : 'bg-orange-100'}`}>{tx.amount >= 0 ? '↑' : '↓'}</div>
-                                <div>
-                                  <div className="text-sm font-bold text-gray-800">{tx.label}</div>
-                                  <div className="text-xs text-gray-400">{new Date(tx.date).toLocaleDateString('fr-FR')}</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className={`text-sm font-black tabular-nums ${tx.amount >= 0 ? 'text-green-500' : 'text-orange-500'}`}>{tx.amount >= 0 ? '+' : ''}{tx.amount.toFixed(2)} €</div>
-                                <button onClick={() => { if (confirm(`Supprimer "${tx.label}" ?`)) setData(d => ({ ...d, transactions: d.transactions.filter(t => t.id !== tx.id) })); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-400 transition-colors text-base leading-none">×</button>
+              {/* Merged history */}
+              <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Historique</h2>
+              {mergedHistory.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-3xl">Aucune transaction</div>
+              ) : (
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {mergedHistory.map((item, i) => {
+                      if (item.type === 'allowance') {
+                        return (
+                          <div key={`a-${i}`} className="bg-white rounded-2xl px-4 py-3.5 shadow-sm flex items-center justify-between opacity-70">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-purple-100 text-base flex-shrink-0">💸</div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-600">Versement automatique</div>
+                                <div className="text-xs text-gray-400">{item.date.toLocaleDateString('fr-FR')}</div>
                               </div>
                             </div>
-                            {tx.note && <p className="text-xs text-gray-400 mt-1.5 ml-12 italic">"{tx.note}"</p>}
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  )
-                )}
-
-                {/* Allowance history */}
-                {historyTab === 'allowance' && (
-                  allowanceDates.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-3xl">Aucun versement</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {allowanceDates.map((d, i) => (
-                        <div key={i} className="bg-white rounded-2xl px-4 py-3.5 shadow-sm flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base bg-purple-100">💸</div>
-                            <div>
-                              <div className="text-sm font-bold text-gray-800">Versement automatique</div>
-                              <div className="text-xs text-gray-400">{d.toLocaleDateString('fr-FR')}</div>
+                            <div className="text-sm font-black text-green-500">+{child.allowance.amount.toFixed(2)} €</div>
+                          </div>
+                        );
+                      }
+                      const tx = item.tx;
+                      return (
+                        <motion.div key={tx.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.15 }} className="bg-white rounded-2xl px-4 py-3.5 shadow-sm" style={{ willChange: 'transform, opacity' }}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${tx.amount >= 0 ? 'bg-green-100' : 'bg-orange-100'}`}>{tx.amount >= 0 ? '↑' : '↓'}</div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-800">{tx.label}</div>
+                                <div className="text-xs text-gray-400">{new Date(tx.date).toLocaleDateString('fr-FR')}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className={`text-sm font-black tabular-nums ${tx.amount >= 0 ? 'text-green-500' : 'text-orange-500'}`}>{tx.amount >= 0 ? '+' : ''}{tx.amount.toFixed(2)} €</div>
+                              <button onClick={() => { if (confirm(`Supprimer "${tx.label}" ?`)) setData(d => ({ ...d, transactions: d.transactions.filter(t => t.id !== tx.id) })); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-400 transition-colors text-base leading-none">×</button>
                             </div>
                           </div>
-                          <div className="text-sm font-black text-green-500">+{child.allowance.amount.toFixed(2)} €</div>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                )}
-              </motion.div>
-            );
-          })()}
+                          {tx.note && <p className="text-xs text-gray-400 mt-1.5 ml-12 italic">&quot;{tx.note}&quot;</p>}
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              )}
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
@@ -483,6 +411,22 @@ export default function App() {
             <ChildForm initial={childToCF(child)} onSubmit={editChild} submitLabel="Enregistrer" />
           </Modal>
         )}
+        {modal === 'goal' && (
+          <Modal title="Objectif d'épargne" onClose={() => setModal(null)}>
+            <div className="space-y-4">
+              <div><label className={lbl}>Nom de l&apos;objectif</label><input className={inp} value={gf.label} onChange={e => setGf(f => ({ ...f, label: e.target.value }))} placeholder="Nintendo Switch, vélo…" autoFocus /></div>
+              <div><label className={lbl}>Montant cible (€)</label><input type="number" className={inp} value={gf.amount} onChange={e => setGf(f => ({ ...f, amount: e.target.value }))} placeholder="300" min="0" step="1" /></div>
+              <motion.button onClick={submitGoal} disabled={!gf.label.trim() || !gf.amount} whileTap={{ scale: 0.97 }} className="w-full text-white font-black py-4 rounded-2xl shadow-md disabled:opacity-40" style={{ background: 'linear-gradient(135deg,#7C5CBF,#9B6FD4)' }}>
+                Enregistrer l&apos;objectif
+              </motion.button>
+              {child?.goal && (
+                <button onClick={removeGoal} className="w-full py-3 text-sm text-red-400 hover:text-red-600 font-semibold transition-colors">
+                  Supprimer l&apos;objectif
+                </button>
+              )}
+            </div>
+          </Modal>
+        )}
         {modal === 'addTx' && (
           <Modal title={tf.type === 'purchase' ? '🛒 Enregistrer un achat' : '✨ Ajouter un crédit'} onClose={() => setModal(null)} position="top">
             <div className="space-y-4">
@@ -501,9 +445,5 @@ export default function App() {
   );
 }
 
-function fmt(n: number): string {
-  return (n >= 0 ? '' : '-') + Math.abs(n).toFixed(2) + ' €';
-}
-function today(): string {
-  return new Date().toISOString().split('T')[0];
-}
+function fmt(n: number): string { return (n >= 0 ? '' : '-') + Math.abs(n).toFixed(2) + ' €'; }
+function today(): string { return new Date().toISOString().split('T')[0]; }
