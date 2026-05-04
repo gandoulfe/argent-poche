@@ -88,12 +88,12 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} {...MODAL_OVERLAY} />
-      <motion.div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md z-10" {...MODAL_SHEET}>
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+      <motion.div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md z-10 flex flex-col" style={{ maxHeight: '90dvh' }} {...MODAL_SHEET}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors text-lg">×</button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </motion.div>
     </div>
   );
