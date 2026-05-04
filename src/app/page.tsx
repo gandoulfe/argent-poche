@@ -347,7 +347,7 @@ export default function App() {
                             <div className={`text-sm font-black tabular-nums ${tx.amount >= 0 ? 'text-green-500' : 'text-orange-500'}`}>
                               {tx.amount >= 0 ? '+' : ''}{tx.amount.toFixed(2)} €
                             </div>
-                            <button onClick={() => setData(d => ({ ...d, transactions: d.transactions.filter(t => t.id !== tx.id) }))} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-400 transition-colors text-base leading-none">×</button>
+                            <button onClick={() => { if (confirm(`Supprimer "${tx.label}" ?`)) setData(d => ({ ...d, transactions: d.transactions.filter(t => t.id !== tx.id) })); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-400 transition-colors text-base leading-none">×</button>
                           </div>
                         </motion.div>
                       ))}
