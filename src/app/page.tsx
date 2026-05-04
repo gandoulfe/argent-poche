@@ -104,7 +104,7 @@ function Modal({ title, onClose, children, position = 'bottom' }: { title: strin
 }
 
 // ---- Form styles ----
-const inp = "w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 bg-gray-50 focus:bg-white transition-all";
+const inp = "w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-purple-300 bg-gray-50 focus:bg-white transition-all";
 const lbl = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2";
 
 // ---- Child Form (shared by add + edit) ----
