@@ -1,22 +1,21 @@
 import { NextResponse } from 'next/server';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { Redis } from '@upstash/redis';
 
-const FILE = join(process.cwd(), 'data.json');
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+const KEY = 'argent-poche';
 const EMPTY = { children: [], transactions: [] };
 
-function read() {
-  if (!existsSync(FILE)) return EMPTY;
-  try { return JSON.parse(readFileSync(FILE, 'utf-8')); }
-  catch { return EMPTY; }
-}
-
 export async function GET() {
-  return NextResponse.json(read());
+  const data = await redis.get(KEY);
+  return NextResponse.json(data ?? EMPTY);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  writeFileSync(FILE, JSON.stringify(body));
+  await redis.set(KEY, body);
   return NextResponse.json({ ok: true });
 }
