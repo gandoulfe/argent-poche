@@ -171,10 +171,11 @@ export default function App() {
   const [childId, setChildId] = useState<string | null>(null);
   const [modal, setModal] = useState<'addChild' | 'editChild' | 'addTx' | null>(null);
   const loaded = useRef(false);
+  const [loading, setLoading] = useState(true);
 
   const [tf, setTf] = useState({ amount: '', label: '', date: today(), type: 'purchase' });
 
-  useEffect(() => { loadData().then(d => { setData(d); loaded.current = true; }); }, []);
+  useEffect(() => { loadData().then(d => { setData(d); loaded.current = true; setLoading(false); }); }, []);
   useEffect(() => { if (loaded.current) saveData(data); }, [data]);
 
   const child = data.children.find(c => c.id === childId);
@@ -237,7 +238,15 @@ export default function App() {
                 <h1 className="text-3xl font-black text-gray-900 leading-tight">Argent<br />de poche</h1>
               </header>
 
-              {data.children.length === 0 ? (
+              {loading ? (
+                <div className="flex justify-center py-24">
+                  <motion.div
+                    className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-500"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                  />
+                </div>
+              ) : data.children.length === 0 ? (
                 <div className="text-center py-24">
                   <div className="text-7xl mb-4">🐷</div>
                   <p className="font-bold text-gray-600 text-lg">Aucun enfant</p>
